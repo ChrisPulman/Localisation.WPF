@@ -1,0 +1,26 @@
+<Window
+    x:Class="CP.Localisation.CultureSelectWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:p="clr-namespace:CP.Localisation"
+    Title="Select Culture"
+    Width="338"
+    Height="90"
+    MinWidth="174"
+    MinHeight="90"
+    MaxWidth="Infinity"
+    MaxHeight="90"
+    Icon="{p:Resx ResxName=CP.Properties.Resources,
+                  Key=UICultureIcon}"
+    ResizeMode="NoResize"
+    Topmost="True">
+    <Grid>
+        <ComboBox
+            Name="_cultureCombo"
+            Height="27"
+            Margin="12,12,12,0"
+            VerticalAlignment="Top"
+            DisplayMemberPath="DisplayName"
+            SelectionChanged="CultureCombo_SelectionChanged" />
+    </Grid>
+</Window>

@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net462;net6.0-windows;net7.0-windows</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>CP</RootNamespace>
+    <NoWarn>CA1060;IDE1006</NoWarn>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="7.*" />
+    <PackageReference Include="System.Reactive" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\UICultureIcon.ico" />
+  </ItemGroup>
+</Project>
