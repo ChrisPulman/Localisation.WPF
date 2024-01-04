@@ -63,7 +63,7 @@ public abstract class ManagedMarkupExtension : MarkupExtension
     /// For normal elements their will be a single target. For templates their may be zero or
     /// more targets.
     /// </remarks>
-    protected List<WeakReference> TargetObjects { get; } = new();
+    protected List<WeakReference> TargetObjects { get; } = [];
 
     /// <summary>
     /// Gets return the Target Property the extension is associated with.
