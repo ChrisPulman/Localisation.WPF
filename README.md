@@ -1,6 +1,9 @@
 # Localisation.WPF
 Localisation library for WPF - use with ResxManager
 
+![Nuget](https://img.shields.io/nuget/dt/Localisation.WPF?color=pink&style=plastic)
+[![NuGet](https://img.shields.io/nuget/v/Localisation.WPF.svg?style=plastic)](https://www.nuget.org/packages/Localisation.WPF)
+
 ## Usage
 
 ### 1. Create a new WPF project
