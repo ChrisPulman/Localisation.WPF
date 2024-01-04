@@ -21,7 +21,7 @@ namespace CP.Localisation;
 /// </remarks>
 public static class CultureManager
 {
-    private static readonly ISubject<Unit> _uICultureChangedSubject = new Subject<Unit>();
+    private static readonly Subject<Unit> _uICultureChangedSubject = new();
     private static CultureSelectWindow? _cultureSelectWindow;
     private static NotifyIcon? _notifyIcon;
     private static IntPtr _notifyIconHandle;

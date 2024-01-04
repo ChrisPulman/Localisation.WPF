@@ -12,33 +12,26 @@ namespace CP.Localisation;
 /// This class provides a single point for updating all markup targets that use the given Markup
 /// Extension managed by this class.
 /// </remarks>
-public class MarkupExtensionManager
+/// <remarks>
+/// Initializes a new instance of the <see cref="MarkupExtensionManager"/> class.
+/// Create a new instance of the manager.
+/// </remarks>
+/// <param name="cleanupInterval">
+/// The interval at which to cleanup and remove extensions associated with garbage collected
+/// targets. This specifies the number of new Markup Extensions that are created before a
+/// cleanup is triggered.
+/// </param>
+public class MarkupExtensionManager(int cleanupInterval)
 {
-    /// <summary>
-    /// The interval at which to cleanup and remove extensions.
-    /// </summary>
-    private readonly int _cleanupInterval = 40;
-
     /// <summary>
     /// The number of extensions added since the last cleanup.
     /// </summary>
     private int _cleanupCount;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MarkupExtensionManager"/> class.
-    /// Create a new instance of the manager.
-    /// </summary>
-    /// <param name="cleanupInterval">
-    /// The interval at which to cleanup and remove extensions associated with garbage collected
-    /// targets. This specifies the number of new Markup Extensions that are created before a
-    /// cleanup is triggered.
-    /// </param>
-    public MarkupExtensionManager(int cleanupInterval) => _cleanupInterval = cleanupInterval;
-
-    /// <summary>
     /// Gets return a list of the currently active extensions.
     /// </summary>
-    public List<ManagedMarkupExtension> ActiveExtensions { get; private set; } = new();
+    public List<ManagedMarkupExtension> ActiveExtensions { get; private set; } = [];
 
     /// <summary>
     /// Cleanup references to extensions for targets which have been garbage collected.
@@ -85,7 +78,7 @@ public class MarkupExtensionManager
     {
         // Cleanup extensions for target objects which have been garbage collected for
         // performance only do this periodically
-        if (_cleanupCount > _cleanupInterval)
+        if (_cleanupCount > cleanupInterval)
         {
             CleanupInactiveExtensions();
             _cleanupCount = 0;

@@ -65,7 +65,7 @@ public class ResxExtension : ManagedMarkupExtension
     /// <summary>
     /// Cached resource managers.
     /// </summary>
-    private static readonly Dictionary<string, WeakReference> _resourceManagers = new();
+    private static readonly Dictionary<string, WeakReference> _resourceManagers = [];
 
     /// <summary>
     /// The binding (if any) used to store the binding properties for the extension.
@@ -100,7 +100,7 @@ public class ResxExtension : ManagedMarkupExtension
         // switching of language
         if (AppDomain.CurrentDomain.FriendlyName == "XDesProc.exe")
         {
-            _assemblyProbingPaths = new List<string>();
+            _assemblyProbingPaths = [];
 
             // check the registry first for a defined assembly path - use OpenBaseKey to avoid
             // Wow64 redirection
@@ -380,7 +380,7 @@ public class ResxExtension : ManagedMarkupExtension
     /// cref="MultiBinding"/> eg If a Resx has two child elements then you.
     /// </remarks>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    public Collection<ResxExtension> Children { get; } = new();
+    public Collection<ResxExtension> Children { get; } = [];
 
     /// <summary>
     /// Gets or sets the default value to use if the resource can't be found.
@@ -676,13 +676,7 @@ public class ResxExtension : ManagedMarkupExtension
         {
             var resources = assembly.GetManifestResourceNames();
             var searchName = resxName!.ToLower() + ".resources";
-            foreach (var resource in resources)
-            {
-                if (resource.ToLower() == searchName)
-                {
-                    return true;
-                }
-            }
+            return resources.Any(resource => resource.Equals(searchName, StringComparison.CurrentCultureIgnoreCase));
         }
         catch
         {
