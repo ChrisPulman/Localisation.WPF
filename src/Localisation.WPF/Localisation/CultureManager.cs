@@ -52,6 +52,9 @@ public static class CultureManager
             if (value)
             {
                 SetThreadCulture(UICulture);
+
+                // Ensure new threads also inherit the current culture
+                CultureInfo.DefaultThreadCurrentCulture = Thread.CurrentThread.CurrentCulture;
             }
         }
     }
@@ -62,24 +65,19 @@ public static class CultureManager
     /// </summary>
     public static CultureInfo UICulture
     {
-        get => _uiCulture ??= Thread.CurrentThread.CurrentUICulture;
+        get => _uiCulture;
 
         set
         {
-            if (value != UICulture)
+            if (value == null)
             {
-                _uiCulture = value;
-                Thread.CurrentThread.CurrentUICulture = value;
-                if (SynchronizeThreadCulture && value != null)
-                {
-                    SetThreadCulture(value);
-                }
+                return;
+            }
 
-                UICultureExtension.UpdateAllTargets();
-                ResxExtension.UpdateAllTargets();
-                UICulture.SyncCultureInfo();
-                UICultureChanged?.Invoke(null, EventArgs.Empty);
-                _uICultureChangedSubject.OnNext(Unit.Default);
+            // Compare by culture name to avoid redundant updates when equivalent instances are provided
+            if (!string.Equals(_uiCulture?.Name, value.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyUICulture(value);
             }
         }
     }
@@ -110,12 +108,9 @@ public static class CultureManager
             _notifyIcon.Text = Resources.UICultureSelectText;
             var menuStrip = new ContextMenuStrip();
 
-            // separator
-            using (var toolStripSeparator = new ToolStripSeparator())
-            {
-                // separator
-                menuStrip.Items.Add(toolStripSeparator);
-            }
+            // separator (do not dispose immediately to avoid ObjectDisposed issues)
+            var toolStripSeparator = new ToolStripSeparator();
+            menuStrip.Items.Add(toolStripSeparator);
 
             // add menu to open culture select window
             menuItem = new ToolStripMenuItem(Resources.OtherCulturesMenu);
@@ -166,9 +161,14 @@ public static class CultureManager
     /// <returns>True if there is a menu.</returns>
     private static bool CultureMenuExists(CultureInfo culture)
     {
-        foreach (ToolStripItem item in _notifyIcon!.ContextMenuStrip!.Items!)
+        if (_notifyIcon?.ContextMenuStrip == null)
         {
-            if (item.Tag is CultureInfo itemCulture && itemCulture.Name == culture.Name)
+            return false;
+        }
+
+        foreach (ToolStripItem item in _notifyIcon.ContextMenuStrip.Items)
+        {
+            if (item.Tag is CultureInfo itemCulture && string.Equals(itemCulture.Name, culture.Name, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -280,7 +280,12 @@ public static class CultureManager
             AddCultureMenuItem(culture);
         }
 
-        foreach (ToolStripItem item in _notifyIcon!.ContextMenuStrip!.Items!)
+        if (_notifyIcon?.ContextMenuStrip == null)
+        {
+            return;
+        }
+
+        foreach (ToolStripItem item in _notifyIcon.ContextMenuStrip.Items)
         {
             if (item is ToolStripMenuItem menuItem)
             {
@@ -294,6 +299,59 @@ public static class CultureManager
     /// </summary>
     /// <param name="value">The culture to set.</param>
     /// <remarks>If the culture is neutral then creates a specific culture.</remarks>
-    private static void SetThreadCulture(CultureInfo value) =>
-        Thread.CurrentThread.CurrentCulture = value.IsNeutralCulture ? CultureInfo.CreateSpecificCulture(value.Name) : value;
+    private static void SetThreadCulture(CultureInfo value)
+    {
+        var specific = value.IsNeutralCulture ? CultureInfo.CreateSpecificCulture(value.Name) : value;
+        Thread.CurrentThread.CurrentCulture = specific;
+    }
+
+    private static void ApplyUICulture(CultureInfo? value)
+    {
+        if (value == null)
+        {
+            return;
+        }
+
+        _uiCulture = value;
+
+        // Set current thread UI culture
+        Thread.CurrentThread.CurrentUICulture = value;
+
+        // Ensure new threads inherit the updated UI culture
+        CultureInfo.DefaultThreadCurrentUICulture = value;
+
+        // Optionally synchronize the CurrentCulture
+        if (SynchronizeThreadCulture)
+        {
+            SetThreadCulture(value);
+            CultureInfo.DefaultThreadCurrentCulture = Thread.CurrentThread.CurrentCulture;
+        }
+
+        // Apply updates on the WPF UI thread to avoid cross-thread access to DependencyObjects
+        void ApplyUpdates()
+        {
+            UICultureExtension.UpdateAllTargets();
+            ResxExtension.UpdateAllTargets();
+            UICultureChanged?.Invoke(null, EventArgs.Empty);
+            _uICultureChangedSubject.OnNext(Unit.Default);
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null)
+        {
+            if (dispatcher.CheckAccess())
+            {
+                ApplyUpdates();
+            }
+            else
+            {
+                dispatcher.Invoke(ApplyUpdates);
+            }
+        }
+        else
+        {
+            // No WPF Application (e.g., during design-time host fallback)
+            ApplyUpdates();
+        }
+    }
 }

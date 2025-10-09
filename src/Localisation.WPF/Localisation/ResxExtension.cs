@@ -331,7 +331,7 @@ public class ResxExtension : ManagedMarkupExtension
 
     /// <summary>
     /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.ValidatesOnDataErrors"/>.
-    /// </summary>
+    /// </summary]
     [DefaultValue(false)]
     public bool BindingValidatesOnDataErrors
     {
@@ -489,6 +489,11 @@ public class ResxExtension : ManagedMarkupExtension
         // Show the icon in the notification tray to allow changing culture at design time
         if (IsInDesignMode)
         {
+            CultureManager.ShowCultureNotifyIcon();
+        }
+        else if (Debugger.IsAttached)
+        {
+            // Also show when debugging to allow runtime testing
             CultureManager.ShowCultureNotifyIcon();
         }
 
