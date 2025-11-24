@@ -289,7 +289,5 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         return _resourceManager.GetString(resourceName, culture) ?? resourceName;
     }
 
-    private class LookupTable : Dictionary<string, object>
-    {
-    }
+    private class LookupTable : Dictionary<string, object>;
 }
