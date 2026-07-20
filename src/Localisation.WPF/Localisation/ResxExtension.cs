@@ -1,4 +1,4 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
+// Copyright (c) Chris Pulman. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -20,8 +20,13 @@ using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using WpfImage = System.Windows.Controls.Image;
 
+#if REACTIVE_SHIM
+namespace CP.Localisation.Reactive;
+#else
 namespace CP.Localisation;
+#endif
 
 /// <summary>
 /// A markup extension to allow resources for WPF Windows and controls to be retrieved from an
@@ -41,11 +46,10 @@ namespace CP.Localisation;
 /// </remarks>
 [MarkupExtensionReturnType(typeof(object))]
 [ContentProperty(nameof(Children))]
+[DebuggerDisplay("{DebuggerDisplay,nq}")]
 public class ResxExtension : ManagedMarkupExtension
 {
-    /// <summary>
-    /// The ResxName attached property.
-    /// </summary>
+    /// <summary>The ResxName attached property.</summary>
     public static readonly DependencyProperty DefaultResxNameProperty =
         DependencyProperty.RegisterAttached(
         "DefaultResxName",
@@ -56,25 +60,20 @@ public class ResxExtension : ManagedMarkupExtension
             FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.Inherits,
             new PropertyChangedCallback(OnDefaultResxNamePropertyChanged)));
 
-    /// <summary>
-    /// The directories to probe for satellite assemblies when running inside the Visual Studio
-    /// designer process (XDesProc).
-    /// </summary>
+    private const int CleanupInterval = 40;
+
+    private const string ResourceFileSuffix = ".resources";
+
+    /// <summary>The directories to probe for satellite assemblies when running inside the Visual Studio designer process (XDesProc).</summary>
     private static readonly List<string>? _assemblyProbingPaths;
 
-    /// <summary>
-    /// Cached resource managers.
-    /// </summary>
+    /// <summary>Cached resource managers.</summary>
     private static readonly Dictionary<string, WeakReference> _resourceManagers = [];
 
-    /// <summary>
-    /// The binding (if any) used to store the binding properties for the extension.
-    /// </summary>
+    /// <summary>The binding (if any) used to store the binding properties for the extension.</summary>
     private Binding? _binding;
 
-    /// <summary>
-    /// The default resx name (based on the attached property).
-    /// </summary>
+    /// <summary>The default resx name (based on the attached property).</summary>
     private string? _defaultResxName;
 
     /// <summary>
@@ -83,72 +82,63 @@ public class ResxExtension : ManagedMarkupExtension
     /// </summary>
     private ResourceManager? _resourceManager;
 
-    /// <summary>
-    /// The explicitly set embedded Resx Name (if any).
-    /// </summary>
-    private string? _resxName;
-
-    /// <summary>
-    /// Initializes static members of the <see cref="ResxExtension"/> class.
-    /// Class constructor.
-    /// </summary>
+    /// <summary>Initializes static members of the <see cref="ResxExtension"/> class. Class constructor.</summary>
     static ResxExtension()
     {
         // The Visual Studio 2012/2013 designer process (XDesProc) shadow copies the assemblies
         // to a cache location. Unfortunately it doesn't shadow copy the satellite assemblies -
         // so we have to resolve these ourselves if we want to have support for design time
         // switching of language
-        if (AppDomain.CurrentDomain.FriendlyName == "XDesProc.exe")
+        if (AppDomain.CurrentDomain.FriendlyName != "XDesProc.exe")
         {
-            _assemblyProbingPaths = [];
-
-            // check the registry first for a defined assembly path - use OpenBaseKey to avoid
-            // Wow64 redirection
-            using (var key = Registry.CurrentUser.OpenSubKey(@"Software\ResxExtension", false))
-            {
-                if (key?.GetValue("AssemblyPath") is string assemblyPath)
-                {
-                    foreach (var path in assemblyPath.Split(';'))
-                    {
-                        _assemblyProbingPaths.Add(path.Trim());
-                    }
-                }
-            }
-
-            // Look for Visual Studio hosting processes and add the path to the probing path -
-            // this means that if the hosting process is enabled you don't need to use a registry entry
-            foreach (var process in Process.GetProcesses())
-            {
-                try
-                {
-                    if (process.ProcessName.Contains(".vshost"))
-                    {
-                        var path = GetProcessFilepath(process.Id);
-                        _assemblyProbingPaths.Add(Path.GetDirectoryName(path)!);
-                    }
-                }
-                catch
-                {
-                }
-            }
-
-            AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
+            return;
         }
+
+        _assemblyProbingPaths = [];
+
+        // check the registry first for a defined assembly path - use OpenBaseKey to avoid
+        // Wow64 redirection
+        using (var key = Registry.CurrentUser.OpenSubKey(@"Software\ResxExtension", false))
+        {
+            if (key?.GetValue("AssemblyPath") is string assemblyPath)
+            {
+                foreach (var path in assemblyPath.Split(';'))
+                {
+                    _assemblyProbingPaths.Add(path.Trim());
+                }
+            }
+        }
+
+        // Look for Visual Studio hosting processes and add the path to the probing path -
+        // this means that if the hosting process is enabled you don't need to use a registry entry
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                if (process.ProcessName.Contains(".vshost"))
+                {
+                    var path = GetProcessFilepath(process.Id);
+                    _assemblyProbingPaths.Add(Path.GetDirectoryName(path)!);
+                }
+            }
+            catch (Win32Exception)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
     }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ResxExtension"/> class.
-    /// Create a new instance of the markup extension.
-    /// </summary>
+    /// <summary>Initializes a new instance of the <see cref="ResxExtension"/> class. Create a new instance of the markup extension.</summary>
     public ResxExtension()
         : base(MarkupManager)
     {
     }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ResxExtension"/> class.
-    /// Create a new instance of the markup extension.
-    /// </summary>
+    /// <summary>Initializes a new instance of the <see cref="ResxExtension"/> class. Create a new instance of the markup extension.</summary>
     /// <param name="key">The key used to get the value from the resources.</param>
     public ResxExtension(string key)
         : base(MarkupManager) => Key = key;
@@ -157,16 +147,12 @@ public class ResxExtension : ManagedMarkupExtension
     /// This event allows a designer or preview application (such as Globalizer.NET) to intercept
     /// calls to get resources and provide the values instead dynamically
     /// </summary>
-    public static event GetResourceHandler? GetResource;
+    public static event EventHandler<GetResourceEventArgs>? GetResource;
 
-    /// <summary>
-    /// Gets return the MarkupManager for this extension.
-    /// </summary>
-    public static MarkupExtensionManager MarkupManager { get; } = new(40);
+    /// <summary>Gets return the MarkupManager for this extension.</summary>
+    public static MarkupExtensionManager MarkupManager { get; } = new(CleanupInterval);
 
-    /// <summary>
-    /// Gets return the associated binding for the extension.
-    /// </summary>
+    /// <summary>Gets return the associated binding for the extension.</summary>
     public Binding Binding
     {
         get
@@ -176,204 +162,158 @@ public class ResxExtension : ManagedMarkupExtension
         }
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.AsyncState"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.AsyncState"/>.</summary>
     [DefaultValue(null)]
     public object BindingAsyncState
     {
         get => Binding.AsyncState; set => Binding.AsyncState = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.Converter"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.Converter"/>.</summary>
     [DefaultValue(null)]
     public IValueConverter BindingConverter
     {
         get => Binding.Converter; set => Binding.Converter = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.ConverterCulture"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.ConverterCulture"/>.</summary>
     [DefaultValue(null)]
     public CultureInfo BindingConverterCulture
     {
         get => Binding.ConverterCulture; set => Binding.ConverterCulture = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.ConverterParameter"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.ConverterParameter"/>.</summary>
     [DefaultValue(null)]
     public object BindingConverterParameter
     {
         get => Binding.ConverterParameter; set => Binding.ConverterParameter = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.ElementName"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.ElementName"/>.</summary>
     [DefaultValue(null)]
     public string BindingElementName
     {
         get => Binding.ElementName; set => Binding.ElementName = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="BindingBase.FallbackValue"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="BindingBase.FallbackValue"/>.</summary>
     [DefaultValue(null)]
     public object BindingFallbackValue
     {
         get => Binding.FallbackValue; set => Binding.FallbackValue = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="BindingBase.BindingGroupName"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="BindingBase.BindingGroupName"/>.</summary>
     [DefaultValue(null)]
     public string BindingGroupName
     {
         get => Binding.BindingGroupName; set => Binding.BindingGroupName = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.IsAsync"/>.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.IsAsync"/>.</summary>
     [DefaultValue(false)]
     public bool BindingIsAsync
     {
         get => Binding.IsAsync; set => Binding.IsAsync = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.Mode"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.Mode"/>.</summary>
     [DefaultValue(BindingMode.Default)]
     public BindingMode BindingMode
     {
         get => Binding.Mode; set => Binding.Mode = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.NotifyOnSourceUpdated"/>.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.NotifyOnSourceUpdated"/>.</summary>
     [DefaultValue(false)]
     public bool BindingNotifyOnSourceUpdated
     {
         get => Binding.NotifyOnSourceUpdated; set => Binding.NotifyOnSourceUpdated = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.NotifyOnTargetUpdated"/>.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.NotifyOnTargetUpdated"/>.</summary>
     [DefaultValue(false)]
     public bool BindingNotifyOnTargetUpdated
     {
         get => Binding.NotifyOnTargetUpdated; set => Binding.NotifyOnTargetUpdated = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.NotifyOnValidationError"/>.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.NotifyOnValidationError"/>.</summary>
     [DefaultValue(false)]
     public bool BindingNotifyOnValidationError
     {
         get => Binding.NotifyOnValidationError; set => Binding.NotifyOnValidationError = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.Path"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.Path"/>.</summary>
     [DefaultValue(null)]
     public PropertyPath BindingPath
     {
         get => Binding.Path; set => Binding.Path = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.RelativeSource"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.RelativeSource"/>.</summary>
     [DefaultValue(null)]
     public RelativeSource BindingRelativeSource
     {
         get => Binding.RelativeSource; set => Binding.RelativeSource = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.Source"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.Source"/>.</summary>
     [DefaultValue(null)]
     public object BindingSource
     {
         get => Binding.Source; set => Binding.Source = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="BindingBase.TargetNullValue"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="BindingBase.TargetNullValue"/>.</summary>
     [DefaultValue(null)]
     public object BindingTargetNullValue
     {
         get => Binding.TargetNullValue; set => Binding.TargetNullValue = value;
     }
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.UpdateSourceTrigger"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.UpdateSourceTrigger"/>.</summary>
     [DefaultValue(UpdateSourceTrigger.Default)]
     public UpdateSourceTrigger BindingUpdateSourceTrigger
     {
         get => Binding.UpdateSourceTrigger; set => Binding.UpdateSourceTrigger = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.ValidatesOnDataErrors"/>.
-    /// </summary]
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.ValidatesOnDataErrors"/>.</summary>
     [DefaultValue(false)]
     public bool BindingValidatesOnDataErrors
     {
         get => Binding.ValidatesOnDataErrors; set => Binding.ValidatesOnDataErrors = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.ValidatesOnExceptions"/>.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.ValidatesOnExceptions"/>.</summary>
     [DefaultValue(false)]
     public bool BindingValidatesOnExceptions
     {
         get => Binding.ValidatesOnExceptions; set => Binding.ValidatesOnExceptions = value;
     }
 
-    /// <summary>
-    /// Gets use the Resx value to format bound data. See <see cref="Binding.ValidationRules"/>.
-    /// </summary>
+    /// <summary>Gets use the Resx value to format bound data. See <see cref="Binding.ValidationRules"/>.</summary>
     [DefaultValue(false)]
     public Collection<ValidationRule> BindingValidationRules => Binding.ValidationRules;
 
-    /// <summary>
-    /// Gets or sets use the Resx value to format bound data. See <see cref="Binding.XPath"/>.
-    /// </summary>
+    /// <summary>Gets or sets use the Resx value to format bound data. See <see cref="Binding.XPath"/>.</summary>
     [DefaultValue(null)]
     public string BindingXPath
     {
         get => Binding.XPath; set => Binding.XPath = value;
     }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.BindsDirectlyToSource"/>.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether use the Resx value to format bound data. See <see cref="Binding.BindsDirectlyToSource"/>.</summary>
     [DefaultValue(false)]
     public bool BindsDirectlyToSource
     {
         get => Binding.BindsDirectlyToSource; set => Binding.BindsDirectlyToSource = value;
     }
 
-    /// <summary>
-    /// Gets the child Resx elements (if any).
-    /// </summary>
+    /// <summary>Gets the child Resx elements (if any).</summary>
     /// <remarks>
     /// You can nest Resx elements in this case the parent Resx element value is used as a format
     /// string to format the values from child Resx elements similar to a <see
@@ -382,32 +322,26 @@ public class ResxExtension : ManagedMarkupExtension
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public Collection<ResxExtension> Children { get; } = [];
 
-    /// <summary>
-    /// Gets or sets the default value to use if the resource can't be found.
-    /// </summary>
+    /// <summary>Gets or sets the default value to use if the resource can't be found.</summary>
     /// <remarks>
     /// This particularly useful for properties which require non-null values because it allows
     /// the page to be displayed even if the resource can't be loaded.
     /// </remarks>
     public string? DefaultValue { get; set; }
 
-    /// <summary>
-    /// Gets or sets the name of the resource key.
-    /// </summary>
+    /// <summary>Gets or sets the name of the resource key.</summary>
     public string? Key { get; set; }
 
-    /// <summary>
-    /// Gets or sets the fully qualified name of the embedded resx (without .resources) to get the resource from.
-    /// </summary>
+    /// <summary>Gets or sets the fully qualified name of the embedded resx (without .resources) to get the resource from.</summary>
     public string? ResxName
     {
         get
         {
             // if the ResxName property is not set explicitly then check the attached property
-            var result = _resxName;
+            var result = field;
             if (string.IsNullOrEmpty(result))
             {
-                if (_defaultResxName == null)
+                if (_defaultResxName is null)
                 {
                     var targetRef = TargetObjects.Find(target => target.IsAlive);
                     if (targetRef?.Target is DependencyObject)
@@ -422,50 +356,39 @@ public class ResxExtension : ManagedMarkupExtension
             return result;
         }
 
-        set => _resxName = value;
+        set => field = value;
     }
 
-    /// <summary>
-    /// Gets a value indicating whether have any of the binding properties been set.
-    /// </summary>
-    private bool IsBindingExpression => _binding != null
-                && (_binding.Source != null || _binding.RelativeSource != null
-                 || _binding.ElementName != null || _binding.XPath != null
-                 || _binding.Path != null);
+    /// <summary>Gets a value indicating whether have any of the binding properties been set.</summary>
+    private bool IsBindingExpression => _binding is not null
+                && (_binding.Source is not null || _binding.RelativeSource is not null
+                 || _binding.ElementName is not null || _binding.XPath is not null
+                 || _binding.Path is not null);
 
-    /// <summary>
-    /// Gets a value indicating whether is this ResxExtension being used inside another Resx Extension for multi-binding.
-    /// </summary>
+    /// <summary>Gets a value indicating whether is this ResxExtension being used inside another Resx Extension for multi-binding.</summary>
     private bool IsMultiBindingChild => TargetPropertyType == typeof(Collection<ResxExtension>);
 
-    /// <summary>
-    /// Gets a value indicating whether is this ResxExtension being used as a multi-binding parent.
-    /// </summary>
+    /// <summary>Gets a value indicating whether is this ResxExtension being used as a multi-binding parent.</summary>
     private bool IsMultiBindingParent => Children.Count > 0;
 
-    /// <summary>
-    /// Get the DefaultResxName attached property for the given target.
-    /// </summary>
+    [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+    private string DebuggerDisplay => ToString() ?? GetType().Name;
+
+    /// <summary>Get the DefaultResxName attached property for the given target.</summary>
     /// <param name="target">The Target object.</param>
     /// <returns>The name of the Resx.</returns>
     [AttachedPropertyBrowsableForChildren(IncludeDescendants = true)]
     public static string? GetDefaultResxName(DependencyObject target) => (string?)target?.GetValue(DefaultResxNameProperty);
 
-    /// <summary>
-    /// Set the DefaultResxName attached property for the given target.
-    /// </summary>
+    /// <summary>Set the DefaultResxName attached property for the given target.</summary>
     /// <param name="target">The Target object.</param>
     /// <param name="value">The name of the Resx.</param>
     public static void SetDefaultResxName(DependencyObject target, string value) => target?.SetValue(DefaultResxNameProperty, value);
 
-    /// <summary>
-    /// Use the Markup Manager to update all targets.
-    /// </summary>
+    /// <summary>Use the Markup Manager to update all targets.</summary>
     public static void UpdateAllTargets() => MarkupManager.UpdateAllTargets();
 
-    /// <summary>
-    /// Update the ResxExtension target with the given key.
-    /// </summary>
+    /// <summary>Update the ResxExtension target with the given key.</summary>
     /// <param name="key">todo: describe key parameter on UpdateTarget.</param>
     public static void UpdateTarget(string key)
     {
@@ -475,9 +398,7 @@ public class ResxExtension : ManagedMarkupExtension
         }
     }
 
-    /// <summary>
-    /// Return the value for this instance of the Markup Extension.
-    /// </summary>
+    /// <summary>Return the value for this instance of the Markup Extension.</summary>
     /// <param name="serviceProvider">The service provider.</param>
     /// <returns>The value of the element.</returns>
     /// <exception cref="ArgumentException">A ArgumentException.</exception>
@@ -506,52 +427,46 @@ public class ResxExtension : ManagedMarkupExtension
 
         // if the extension is used in a template or as a child of another resx extension (for
         // multi-binding) then return this
-        if (TargetProperty == null || IsMultiBindingChild)
+        if (TargetProperty is null || IsMultiBindingChild)
         {
             result = this;
         }
+        else if (IsMultiBindingParent)
+        {
+            // Invoke after this method returns to set up the MultiBinding on the target element.
+            var binding = CreateMultiBinding();
+            result = binding.ProvideValue(serviceProvider);
+        }
+        else if (IsBindingExpression)
+        {
+            // If this is a simple binding then return the binding.
+            var binding = CreateBinding();
+            result = binding.ProvideValue(serviceProvider);
+        }
         else
         {
-            // if this extension has child Resx elements then invoke AFTER this method has
-            // returned to setup the MultiBinding on the target element.
-            if (IsMultiBindingParent)
-            {
-                var binding = CreateMultiBinding();
-                result = binding.ProvideValue(serviceProvider);
-            }
-            else if (IsBindingExpression)
-            {
-                // if this is a simple binding then return the binding
-                var binding = CreateBinding();
-                result = binding.ProvideValue(serviceProvider);
-            }
-            else
-            {
-                // otherwise return the value from the resources
-                result = GetValue();
-            }
+            // Otherwise return the value from the resources.
+            result = GetValue();
         }
 
         return result;
     }
 
-    /// <summary>
-    /// Return a list of the current design time cultures.
-    /// </summary>
+    /// <summary>Return a list of the current design time cultures.</summary>
     /// <returns>A Value.</returns>
     internal static List<CultureInfo> GetDesignTimeCultures()
     {
         var result = new List<CultureInfo>();
-        if (_assemblyProbingPaths != null)
+        if (_assemblyProbingPaths is not null)
         {
             foreach (var path in _assemblyProbingPaths)
             {
                 var subDirectories = Directory.GetDirectories(path);
-                var converter = new CultureInfoConverter();
+                _ = new CultureInfoConverter();
                 foreach (var subDirectory in subDirectories)
                 {
                     var culture = GetCulture(Path.GetFileName(subDirectory));
-                    if (culture != null)
+                    if (culture is not null)
                     {
                         result.Add(culture);
                     }
@@ -562,53 +477,21 @@ public class ResxExtension : ManagedMarkupExtension
         return result;
     }
 
-    /// <summary>
-    /// Return the value for the markup extension.
-    /// </summary>
+    /// <summary>Return the value for the markup extension.</summary>
     /// <returns>The value from the resources if possible otherwise the default value.</returns>
     protected override object GetValue()
     {
-        if (string.IsNullOrEmpty(Key))
+        if (Key is not { Length: > 0 } key)
         {
             return new();
         }
 
-        object? result = null;
-        if (!string.IsNullOrEmpty(ResxName))
-        {
-            try
-            {
-                if (GetResource != null)
-                {
-                    result = GetResource(ResxName, Key, CultureManager.UICulture!);
-                }
+        var result = ResxName is { Length: > 0 } resxName ? GetResourceValue(resxName, key) : null;
 
-                if (result == null)
-                {
-                    _resourceManager ??= GetResourceManager(ResxName);
-
-                    if (_resourceManager != null)
-                    {
-                        result = _resourceManager.GetObject(Key, CultureManager.UICulture);
-                    }
-                }
-
-                if (!IsMultiBindingChild)
-                {
-                    result = ConvertValue(result);
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        return (result ?? GetDefaultValue(Key))!;
+        return (result ?? GetDefaultValue(key))!;
     }
 
-    /// <summary>
-    /// Update the given target when the culture changes.
-    /// </summary>
+    /// <summary>Update the given target when the culture changes.</summary>
     /// <param name="target">The target to update.</param>
     protected override void UpdateTarget(object target)
     {
@@ -623,7 +506,7 @@ public class ResxExtension : ManagedMarkupExtension
             if (target is FrameworkElement el)
             {
                 var multiBinding = CreateMultiBinding();
-                el.SetBinding(TargetProperty as DependencyProperty, multiBinding);
+                _ = el.SetBinding(TargetProperty as DependencyProperty, multiBinding);
             }
         }
         else if (IsBindingExpression)
@@ -631,7 +514,7 @@ public class ResxExtension : ManagedMarkupExtension
             if (target is FrameworkElement el)
             {
                 var binding = CreateBinding();
-                el.SetBinding(TargetProperty as DependencyProperty, binding);
+                _ = el.SetBinding(TargetProperty as DependencyProperty, binding);
             }
         }
         else
@@ -640,9 +523,7 @@ public class ResxExtension : ManagedMarkupExtension
         }
     }
 
-    /// <summary>
-    /// Convert a culture name to a CultureInfo - without exceptions if the name is bad.
-    /// </summary>
+    /// <summary>Convert a culture name to a CultureInfo - without exceptions if the name is bad.</summary>
     /// <param name="name">The name of the culture.</param>
     /// <returns>The culture if the name was valid, or else null.</returns>
     /// <remarks>The CultureInfo constructor throws an exception.</remarks>
@@ -651,18 +532,16 @@ public class ResxExtension : ManagedMarkupExtension
         CultureInfo? result = null;
         try
         {
-            result = new CultureInfo(name);
+            result = new(name);
         }
-        catch
+        catch (CultureNotFoundException)
         {
         }
 
         return result;
     }
 
-    /// <summary>
-    /// Check if the assembly contains an embedded resx of the given name.
-    /// </summary>
+    /// <summary>Check if the assembly contains an embedded resx of the given name.</summary>
     /// <param name="assembly">The assembly to check.</param>
     /// <param name="resxName">The name of the resource we are looking for.</param>
     /// <returns>True if the assembly contains the resource.</returns>
@@ -680,10 +559,14 @@ public class ResxExtension : ManagedMarkupExtension
         try
         {
             var resources = assembly.GetManifestResourceNames();
-            var searchName = resxName!.ToLower() + ".resources";
+            var searchName = resxName!.ToLower() + ResourceFileSuffix;
             return resources.Any(resource => resource.Equals(searchName, StringComparison.CurrentCultureIgnoreCase));
         }
-        catch
+        catch (NotSupportedException)
+        {
+            // Some reflection-only or runtime-provided assemblies cannot enumerate resources.
+        }
+        catch (FileNotFoundException)
         {
             // GetManifestResourceNames may throw an exception for some assemblies - just ignore
             // these assemblies.
@@ -692,9 +575,7 @@ public class ResxExtension : ManagedMarkupExtension
         return false;
     }
 
-    /// <summary>
-    /// Return the file path associated with the main module of the given process ID.
-    /// </summary>
+    /// <summary>Return the file path associated with the main module of the given process ID.</summary>
     /// <param name="processId">The process identifier.</param>
     /// <returns>
     /// A Value.
@@ -702,21 +583,15 @@ public class ResxExtension : ManagedMarkupExtension
     private static string? GetProcessFilepath(int processId)
     {
         var wmiQueryString = "SELECT ProcessId, ExecutablePath FROM Win32_Process WHERE ProcessId = " + processId;
-        using (var searcher = new ManagementObjectSearcher(wmiQueryString))
-        using (var results = searcher.Get())
-        {
-            foreach (var mo in results.Cast<ManagementObject>())
-            {
-                return (string)mo["ExecutablePath"];
-            }
-        }
-
-        return null;
+        using var searcher = new ManagementObjectSearcher(wmiQueryString);
+        using var results = searcher.Get();
+        return results
+            .Cast<ManagementObject>()
+            .Select(managementObject => managementObject["ExecutablePath"] as string)
+            .FirstOrDefault(path => path is not null);
     }
 
-    /// <summary>
-    /// Resolve satellite assemblies when running inside the Visual Studio designer (XDesProc) process.
-    /// </summary>
+    /// <summary>Resolve satellite assemblies when running inside the Visual Studio designer (XDesProc) process.</summary>
     /// <param name="sender">The sender.</param>
     /// <param name="args">The <see cref="ResolveEventArgs"/> instance containing the event data.</param>
     /// <returns>
@@ -734,14 +609,14 @@ public class ResxExtension : ManagedMarkupExtension
         var name = nameSplit[0];
 
         // Only resolve satellite resource assemblies
-        if (!name.EndsWith(".resources"))
+        if (!name.EndsWith(ResourceFileSuffix))
         {
             return null;
         }
 
         // ignore calls to resolve our own satellite assemblies
         var thisAssembly = Assembly.GetExecutingAssembly().GetName().Name;
-        if (name == thisAssembly + ".resources")
+        if (name == thisAssembly + ResourceFileSuffix)
         {
             return null;
         }
@@ -788,7 +663,7 @@ public class ResxExtension : ManagedMarkupExtension
             }
         }
 
-        if (latestFile != null)
+        if (latestFile is not null)
         {
             result = Assembly.Load(File.ReadAllBytes(latestFile));
         }
@@ -796,29 +671,65 @@ public class ResxExtension : ManagedMarkupExtension
         return result;
     }
 
-    /// <summary>
-    /// Handle a change to the attached DefaultResxName property.
-    /// </summary>
+    /// <summary>Handle a change to the attached DefaultResxName property.</summary>
     /// <param name="element">the dependency object (a WPF element).</param>
     /// <param name="args">the dependency property changed event arguments.</param>
     /// <remarks>In design mode update the extension with the correct ResxName.</remarks>
     private static void OnDefaultResxNamePropertyChanged(DependencyObject element, DependencyPropertyChangedEventArgs args)
     {
-        if (DesignerProperties.GetIsInDesignMode(element))
+        if (!DesignerProperties.GetIsInDesignMode(element))
         {
-            foreach (var ext in MarkupManager.ActiveExtensions.Cast<ResxExtension>().Where(ext => ext.IsTarget(element)))
-            {
-                // force the resource manager to be reloaded when the attached resx name changes
-                ext._resourceManager = null;
-                ext._defaultResxName = args.NewValue as string;
-                ext.UpdateTarget(element);
-            }
+            return;
+        }
+
+        foreach (var ext in MarkupManager.ActiveExtensions.Cast<ResxExtension>().Where(ext => ext.IsTarget(element)))
+        {
+            // force the resource manager to be reloaded when the attached resx name changes
+            ext._resourceManager = null;
+            ext._defaultResxName = args.NewValue as string;
+            ext.UpdateTarget(element);
         }
     }
 
-    /// <summary>
-    /// Convert a resource object to the type required by the WPF element.
-    /// </summary>
+    private object? GetResourceValue(string resxName, string key)
+    {
+        try
+        {
+            var getResourceEventArgs = new GetResourceEventArgs(resxName, key, CultureManager.UICulture);
+            GetResource?.Invoke(null, getResourceEventArgs);
+            var result = getResourceEventArgs.Resource;
+
+            if (result is null)
+            {
+                _resourceManager ??= GetResourceManager(resxName);
+                result = _resourceManager?.GetObject(key, CultureManager.UICulture);
+            }
+
+            return IsMultiBindingChild ? result : ConvertValue(result);
+        }
+        catch (MissingManifestResourceException)
+        {
+            return null;
+        }
+        catch (MissingSatelliteAssemblyException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Convert a resource object to the type required by the WPF element.</summary>
     /// <param name="value">The resource value to convert.</param>
     /// <returns>The WPF element value.</returns>
     private object? ConvertValue(object? value)
@@ -833,12 +744,10 @@ public class ResxExtension : ManagedMarkupExtension
             // For icons we must create a new BitmapFrame from the icon data stream The approach
             // we use for bitmaps (below) doesn't work when setting the Icon property of a window
             // (although it will work for other Icons)
-            using (var iconStream = new MemoryStream())
-            {
-                icon?.Save(iconStream);
-                iconStream.Seek(0, SeekOrigin.Begin);
-                bitmapSource = BitmapFrame.Create(iconStream);
-            }
+            using var iconStream = new MemoryStream();
+            icon?.Save(iconStream);
+            _ = iconStream.Seek(0, SeekOrigin.Begin);
+            bitmapSource = BitmapFrame.Create(iconStream);
         }
         else if (value is Bitmap)
         {
@@ -854,12 +763,12 @@ public class ResxExtension : ManagedMarkupExtension
         }
 
         object? result;
-        if (bitmapSource != null)
+        if (bitmapSource is not null)
         {
             // if the target property is expecting the Icon to be content then we create an
             // ImageControl and set its Source property to image
             result = TargetPropertyType == typeof(object)
-                ? new System.Windows.Controls.Image
+                ? new WpfImage
                 {
                     Source = bitmapSource,
                     Width = bitmapSource.Width,
@@ -873,7 +782,7 @@ public class ResxExtension : ManagedMarkupExtension
 
             // allow for resources to either contain simple strings or typed data
             var targetType = TargetPropertyType;
-            if (targetType != null && value is string && targetType != typeof(string) && targetType != typeof(object))
+            if (targetType is not null && value is string && targetType != typeof(string) && targetType != typeof(object))
             {
                 var tc = TypeDescriptor.GetConverter(targetType);
                 result = tc.ConvertFromInvariantString((value as string)!);
@@ -883,9 +792,7 @@ public class ResxExtension : ManagedMarkupExtension
         return result;
     }
 
-    /// <summary>
-    /// Create a binding for this Resx Extension.
-    /// </summary>
+    /// <summary>Create a binding for this Resx Extension.</summary>
     /// <returns>A binding for this Resx Extension.</returns>
     private Binding CreateBinding()
     {
@@ -893,17 +800,17 @@ public class ResxExtension : ManagedMarkupExtension
         if (IsBindingExpression)
         {
             // copy all the properties of the binding to the new binding
-            if (_binding?.ElementName != null)
+            if (_binding?.ElementName is not null)
             {
                 binding.ElementName = _binding.ElementName;
             }
 
-            if (_binding?.RelativeSource != null)
+            if (_binding?.RelativeSource is not null)
             {
                 binding.RelativeSource = _binding.RelativeSource;
             }
 
-            if (_binding?.Source != null)
+            if (_binding?.Source is not null)
             {
                 binding.Source = _binding.Source;
             }
@@ -941,9 +848,7 @@ public class ResxExtension : ManagedMarkupExtension
         return binding;
     }
 
-    /// <summary>
-    /// Create new MultiBinding that binds to the child Resx Extensioins.
-    /// </summary>
+    /// <summary>Create new MultiBinding that binds to the child Resx Extensioins.</summary>
     /// <returns>A Value.</returns>
     private MultiBinding CreateMultiBinding()
     {
@@ -959,16 +864,14 @@ public class ResxExtension : ManagedMarkupExtension
         return result;
     }
 
-    /// <summary>
-    /// Find the assembly that contains the type.
-    /// </summary>
+    /// <summary>Find the assembly that contains the type.</summary>
     /// <returns>The assembly if loaded (otherwise null).</returns>
     private Assembly? FindResourceAssembly()
     {
         var assembly = Assembly.GetEntryAssembly();
 
         // check the entry assembly first - this will short circuit a lot of searching
-        if (assembly != null && HasEmbeddedResx(assembly, ResxName))
+        if (assembly is not null && HasEmbeddedResx(assembly, ResxName))
         {
             return assembly;
         }
@@ -992,51 +895,47 @@ public class ResxExtension : ManagedMarkupExtension
         return null;
     }
 
-    /// <summary>
-    /// Return the default value for the property.
-    /// </summary>
+    /// <summary>Return the default value for the property.</summary>
     /// <param name="key">The key.</param>
     /// <returns>A Value.</returns>
     private object? GetDefaultValue(string? key)
     {
         object? result = DefaultValue;
         var targetType = TargetPropertyType;
-        if (DefaultValue == null)
+        if (DefaultValue is null)
         {
             if (targetType == typeof(string) || targetType == typeof(object) || IsMultiBindingChild)
             {
                 result = "#" + key;
             }
         }
-        else if (targetType != null)
+        else if (targetType is not null && targetType != typeof(string) && targetType != typeof(object))
         {
-            // convert the default value if necessary to the required type
-            if (targetType != typeof(string) && targetType != typeof(object))
+            // Convert the default value if necessary to the required type.
+            try
             {
-                try
-                {
-                    var tc = TypeDescriptor.GetConverter(targetType);
-                    result = tc.ConvertFromInvariantString(DefaultValue);
-                }
-                catch
-                {
-                }
+                var typeConverter = TypeDescriptor.GetConverter(targetType);
+                result = typeConverter.ConvertFromInvariantString(DefaultValue);
+            }
+            catch (NotSupportedException)
+            {
+            }
+            catch (FormatException)
+            {
             }
         }
 
         return result;
     }
 
-    /// <summary>
-    /// Get the resource manager for this type.
-    /// </summary>
+    /// <summary>Get the resource manager for this type.</summary>
     /// <param name="resxName">The name of the embedded resx.</param>
     /// <returns>The resource manager.</returns>
     /// <remarks>Caches resource managers to improve performance.</remarks>
     private ResourceManager? GetResourceManager(string? resxName)
     {
         ResourceManager? result = null;
-        if (resxName == null)
+        if (resxName is null)
         {
             return null;
         }
@@ -1047,16 +946,16 @@ public class ResxExtension : ManagedMarkupExtension
 
             // if the resource manager has been garbage collected then remove the cache entry (it
             // will be readded)
-            if (result == null)
+            if (result is null)
             {
-                _resourceManagers.Remove(resxName);
+                _ = _resourceManagers.Remove(resxName);
             }
         }
 
-        if (result == null)
+        if (result is null)
         {
             var assembly = FindResourceAssembly();
-            if (assembly != null)
+            if (assembly is not null)
             {
                 result = new(resxName, assembly);
             }

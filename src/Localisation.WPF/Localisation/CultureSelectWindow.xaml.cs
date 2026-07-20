@@ -1,4 +1,4 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
+// Copyright (c) Chris Pulman. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -7,17 +7,17 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 
+#if REACTIVE_SHIM
+namespace CP.Localisation.Reactive;
+#else
 namespace CP.Localisation;
+#endif
 
-/// <summary>
-/// Window that allows the user to select the culture to use at design time.
-/// </summary>
+/// <summary>Window that allows the user to select the culture to use at design time.</summary>
+[System.Diagnostics.DebuggerDisplay("{DebuggerDisplay,nq}")]
 public partial class CultureSelectWindow : Window
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CultureSelectWindow"/> class.
-    /// Create a new instance of the window.
-    /// </summary>
+    /// <summary>Initializes a new instance of the <see cref="CultureSelectWindow"/> class. Create a new instance of the window.</summary>
     public CultureSelectWindow()
     {
         InitializeComponent();
@@ -27,21 +27,24 @@ public partial class CultureSelectWindow : Window
         _cultureCombo.SelectedItem = CultureManager.UICulture;
     }
 
+    [System.Diagnostics.DebuggerBrowsable(System.Diagnostics.DebuggerBrowsableState.Never)]
+    private string DebuggerDisplay => ToString() ?? GetType().Name;
+
     private void CultureCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_cultureCombo.SelectedItem is CultureInfo cultureInfo)
+        if (_cultureCombo.SelectedItem is not CultureInfo cultureInfo)
         {
-            CultureManager.UICulture = cultureInfo;
+            return;
         }
+
+        CultureManager.UICulture = cultureInfo;
     }
 
-    /// <summary>
-    /// Handle sorting Culture Info.
-    /// </summary>
-    private class CultureInfoComparer : Comparer<CultureInfo>
+    /// <summary>Handle sorting Culture Info.</summary>
+    private sealed class CultureInfoComparer : Comparer<CultureInfo>
     {
         public override int Compare(CultureInfo? x, CultureInfo? y) =>
-            x == null
+            x is null
                 ? throw new ArgumentNullException(nameof(x))
                 : y switch
                 {

@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net462;net8.0-windows;net9.0-windows;net10.0-windows;net11.0-windows</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>CP.Localisation.Reactive</RootNamespace>
+    <AssemblyName>Localisation.WPF.Reactive</AssemblyName>
+    <DefineConstants>$(DefineConstants);REACTIVE_SHIM</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net462'">
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ReactiveUI.Primitives.Reactive" />
+    <PackageReference Include="ReactiveUI.Primitives.Wpf.Reactive" />
+    <PackageReference Include="System.Management" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+    <PackageReference Include="System.Resources.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="CP.Localisation.Reactive.Properties" />
+    <Using Include="ReactiveUI.Primitives.Reactive.Signals" />
+    <Using Include="ReactiveUI.Primitives.Signals" />
+    <Using Include="System.Reactive.Concurrency.IScheduler" Alias="ISequencer" />
+    <Using Include="System.Reactive.Unit" Alias="RxVoid" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Localisation.WPF\**\*.cs"
+             Exclude="..\Localisation.WPF\bin\**\*;..\Localisation.WPF\obj\**\*"
+             Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\Localisation.WPF\Properties\*.resx"
+                      Link="Properties\%(Filename)%(Extension)" />
+    <Resource Include="..\Localisation.WPF\Resources\UICultureIcon.ico"
+              Link="Resources\UICultureIcon.ico" />
+  </ItemGroup>
+
+</Project>
