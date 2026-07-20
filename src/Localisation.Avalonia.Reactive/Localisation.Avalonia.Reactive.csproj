@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CP.Localisation.Avalonia.Reactive</RootNamespace>
+    <AssemblyName>Localisation.Avalonia.Reactive</AssemblyName>
+    <DefineConstants>$(DefineConstants);REACTIVE_SHIM</DefineConstants>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="ReactiveUI.Primitives.Reactive" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="ReactiveUI.Primitives.Reactive.Signals" />
+    <Using Include="ReactiveUI.Primitives.Signals" />
+    <Using Include="System.Reactive.Concurrency.IScheduler" Alias="ISequencer" />
+    <Using Include="System.Reactive.Unit" Alias="RxVoid" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Localisation.Avalonia\**\*.cs"
+             Exclude="..\Localisation.Avalonia\bin\**\*;..\Localisation.Avalonia\obj\**\*"
+             Link="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

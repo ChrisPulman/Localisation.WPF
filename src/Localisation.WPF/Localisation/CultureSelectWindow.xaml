@@ -10,7 +10,7 @@
     MinHeight="90"
     MaxWidth="Infinity"
     MaxHeight="90"
-    Icon="{p:Resx ResxName=CP.Properties.Resources,
+    Icon="{p:Resx ResxName=CP.Localisation.Properties.Resources,
                   Key=UICultureIcon}"
     ResizeMode="NoResize"
     Topmost="True">

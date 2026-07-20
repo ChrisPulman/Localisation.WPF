@@ -1,13 +1,15 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
+// Copyright (c) Chris Pulman. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
 
+#if REACTIVE_SHIM
+namespace CP.Localisation.Reactive;
+#else
 namespace CP.Localisation;
+#endif
 
-/// <summary>
-/// Defines a class for managing <see cref="ManagedMarkupExtension"/> objects.
-/// </summary>
+/// <summary>Defines a class for managing <see cref="ManagedMarkupExtension"/> objects.</summary>
 /// <remarks>
 /// This class provides a single point for updating all markup targets that use the given Markup
 /// Extension managed by this class.
@@ -21,21 +23,19 @@ namespace CP.Localisation;
 /// targets. This specifies the number of new Markup Extensions that are created before a
 /// cleanup is triggered.
 /// </param>
+[System.Diagnostics.DebuggerDisplay("{DebuggerDisplay,nq}")]
 public class MarkupExtensionManager(int cleanupInterval)
 {
-    /// <summary>
-    /// The number of extensions added since the last cleanup.
-    /// </summary>
+    /// <summary>The number of extensions added since the last cleanup.</summary>
     private int _cleanupCount;
 
-    /// <summary>
-    /// Gets return a list of the currently active extensions.
-    /// </summary>
+    /// <summary>Gets return a list of the currently active extensions.</summary>
     public List<ManagedMarkupExtension> ActiveExtensions { get; private set; } = [];
 
-    /// <summary>
-    /// Cleanup references to extensions for targets which have been garbage collected.
-    /// </summary>
+    [System.Diagnostics.DebuggerBrowsable(System.Diagnostics.DebuggerBrowsableState.Never)]
+    private string DebuggerDisplay => ToString() ?? GetType().Name;
+
+    /// <summary>Cleanup references to extensions for targets which have been garbage collected.</summary>
     /// <remarks>
     /// This method is called periodically as new <see cref="ManagedMarkupExtension"/> objects
     /// are registered to release <see cref="ManagedMarkupExtension"/> objects which are no
@@ -57,9 +57,7 @@ public class MarkupExtensionManager(int cleanupInterval)
         ActiveExtensions = newExtensions;
     }
 
-    /// <summary>
-    /// Force the update of all active targets that use the markup extension.
-    /// </summary>
+    /// <summary>Force the update of all active targets that use the markup extension.</summary>
     public virtual void UpdateAllTargets()
     {
         // copy the list of active targets to avoid possible errors if the list is changed while enumerating
@@ -69,10 +67,7 @@ public class MarkupExtensionManager(int cleanupInterval)
         }
     }
 
-    /// <summary>
-    /// Register a new extension and remove extensions which reference target objects that have
-    /// been garbage collected.
-    /// </summary>
+    /// <summary>Register a new extension and remove extensions which reference target objects that have been garbage collected.</summary>
     /// <param name="extension">The extension to register.</param>
     internal void RegisterExtension(ManagedMarkupExtension extension)
     {

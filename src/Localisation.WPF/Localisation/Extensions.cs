@@ -1,26 +1,36 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
+// Copyright (c) Chris Pulman. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Globalization;
 
+#if REACTIVE_SHIM
+namespace CP.Localisation.Reactive;
+#else
 namespace CP.Localisation;
+#endif
 
-/// <summary>
-/// Extensions.
-/// </summary>
+/// <summary>Provides localisation-related extension methods.</summary>
 public static class Extensions
 {
-    /// <summary>
-    /// Converts to string.
-    /// </summary>
-    /// <param name="this">The @this.</param>
-    /// <returns>A Value.</returns>
-    public static string? ConvertToString(this Enum @this) => ResourceEnumConverter.ConvertToString(@this);
+    /// <summary>Provides culture helpers.</summary>
+    /// <param name="culture">The culture applied to the current thread.</param>
+    extension(CultureInfo culture)
+    {
+        /// <summary>Synchronizes the current thread culture and UI culture.</summary>
+        public void SyncCultureInfo()
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = culture;
+            System.Threading.Thread.CurrentThread.CurrentUICulture = culture;
+        }
+    }
 
-    /// <summary>
-    /// Synchronizes the culture information for the current thread.
-    /// </summary>
-    /// <param name="this">The @this.</param>
-    public static void SyncCultureInfo(this CultureInfo @this) => System.Threading.Thread.CurrentThread.CurrentCulture = System.Threading.Thread.CurrentThread.CurrentUICulture = @this;
+    /// <summary>Provides localised enumeration display helpers.</summary>
+    /// <param name="value">The enumeration value to localise.</param>
+    extension(Enum value)
+    {
+        /// <summary>Converts an enumeration value to its localised display string.</summary>
+        /// <returns>The localised display string, when one can be resolved.</returns>
+        public string? ConvertToString() => ResourceEnumConverter.ConvertToString(value);
+    }
 }

@@ -1,73 +1,67 @@
-name: Localisation.WPF CI-BuildOnly
+name: BuildOnly
 
 on:
   push:
     branches-ignore:
       - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
-    outputs:
-      nbgv: ${{ steps.nbgv.outputs.SemVer2 }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-       fetch-depth: 0
-
-    - name: Setup .NET (With cache)
-      uses: actions/setup-dotnet@v6.0.0
-      with:
-        dotnet-version: |
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: |
             8.0.x
             9.0.x
             10.0.x
-        dotnet-quality: 'preview'
-        cache: true
-        cache-dependency-path: |
-            **/Directory.Packages.props
-            **/*.sln
-            **/*.csproj
-            **/global.json
-            **/nuget.config
+            11.0.x
+          dotnet-quality: 'preview'
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v3.0.0
-      with:
-        vs-prerelease: true
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+        with:
+          vs-prerelease: true
 
-    - name: NBGV
-      id: nbgv
-      uses: dotnet/nbgv@master
-      with:
-        setAllVars: true
-    - run: echo 'SemVer2=${{ steps.nbgv.outputs.SemVer2 }}'
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
+        uses: actions/cache@v6
+        with:
+          path: |
+            .nuke/temp
+            ~/.nuget/packages
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
 
-    - name: NuGet Restore
-      run: dotnet restore Localisation.WPF.sln
-      working-directory: src
+      - name: 'Run: Compile'
+        run: ./build.cmd Compile --configuration Release
 
-    - name: Build
-      run: msbuild /t:build,pack /nowarn:MSB4011 /maxcpucount /p:NoPackageAnalysis=true /verbosity:minimal /p:Configuration=Release Localisation.WPF.sln
-      working-directory: src
+      - name: Tests + Coverage (MTP)
+        shell: bash
+        working-directory: 'src'
+        run: |
+          dotnet test --solution Localisation.slnx \
+            --configuration Release \
+            --no-build \
+            --coverage \
+            --coverage-output-format cobertura \
+            --results-directory ./TestResults
 
-    - name: Run Unit Tests and Generate Coverage
-      uses: glennawatson/coverlet-msbuild@v2.1
-      with:
-        project-files: 'src/**/*Tests*.csproj'
-        no-build: true
-        include-filter: 'Localisation.WPF*'
-        output-format: cobertura
-        configuration: Release
-
-    - name: Upload Code Coverage
-      uses: codecov/codecov-action@v7
-
-    - name: Create NuGet Artifacts
-      uses: actions/upload-artifact@master
-      with:
-        name: nuget
-        path: '**/*.nupkg'
+      - name: Upload coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: tmp-coverage
+          path: |
+            ./**/TestResults/**/*.cobertura.xml
+          if-no-files-found: error
+          retention-days: 3

@@ -6,10 +6,12 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
+    <NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Localisation.WPF\Localisation.WPF.csproj" />
+    <ProjectReference Include="..\Localisation.WPF.Reactive\Localisation.WPF.Reactive.csproj" />
   </ItemGroup>
 
   <ItemGroup>

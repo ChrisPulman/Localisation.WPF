@@ -8,7 +8,11 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace CP.Properties;
+#if REACTIVE_SHIM
+namespace CP.Localisation.Reactive.Properties;
+#else
+namespace CP.Localisation.Properties;
+#endif
 
 /// <summary>
 ///   A strongly-typed resource class, for looking up localized strings, etc.
@@ -22,7 +26,6 @@ internal class Resources {
     
     private static global::System.Globalization.CultureInfo resourceCulture;
     
-    [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
     internal Resources() {
     }
     
@@ -33,7 +36,11 @@ internal class Resources {
     internal static global::System.Resources.ResourceManager ResourceManager {
         get {
             if (object.ReferenceEquals(resourceMan, null)) {
-                global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("CP.Properties.Resources", typeof(Resources).Assembly);
+#if REACTIVE_SHIM
+                global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("CP.Localisation.Reactive.Properties.Resources", typeof(Resources).Assembly);
+#else
+                global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("CP.Localisation.Properties.Resources", typeof(Resources).Assembly);
+#endif
                 resourceMan = temp;
             }
             return resourceMan;

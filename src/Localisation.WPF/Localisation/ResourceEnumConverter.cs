@@ -1,4 +1,4 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
+// Copyright (c) Chris Pulman. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -8,12 +8,13 @@ using System.Globalization;
 using System.Resources;
 using System.Windows.Data;
 
+#if REACTIVE_SHIM
+namespace CP.Localisation.Reactive;
+#else
 namespace CP.Localisation;
+#endif
 
-/// <summary>
-/// Defines a type converter for enum values that converts enum values to and from string
-/// representations using resources.
-/// </summary>
+/// <summary>Defines a type converter for enum values that converts enum values to and from string representations using resources.</summary>
 /// <remarks>
 /// This class makes Localisation of display values for enums in a project easy. Simply derive a
 /// class from this class and pass the ResourceManagerin the constructor.
@@ -40,6 +41,7 @@ namespace CP.Localisation;
 /// can then use the TypeConverter attribute to make the LocalizedEnumConverter the default
 /// TypeConverter for the enums in your project.
 /// </remarks>
+[System.Diagnostics.DebuggerDisplay("{DebuggerDisplay,nq}")]
 public class ResourceEnumConverter : EnumConverter, IValueConverter
 {
     private readonly Array? _flagValues;
@@ -62,15 +64,18 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         _resourceManager = resourceManager;
         var flagAttributes = type?.GetCustomAttributes(typeof(FlagsAttribute), true);
         _isFlagEnum = flagAttributes?.Length > 0;
-        if (_isFlagEnum)
+        if (!_isFlagEnum)
         {
-            _flagValues = Enum.GetValues(type!);
+            return;
         }
+
+        _flagValues = Enum.GetValues(type!);
     }
 
-    /// <summary>
-    /// Convert the given enum value to string using the registered type converter.
-    /// </summary>
+    [System.Diagnostics.DebuggerBrowsable(System.Diagnostics.DebuggerBrowsableState.Never)]
+    private string DebuggerDisplay => ToString() ?? GetType().Name;
+
+    /// <summary>Convert the given enum value to string using the registered type converter.</summary>
     /// <param name="value">The enum value to convert to string.</param>
     /// <returns>The localized string value for the enum.</returns>
     public static string? ConvertToString(Enum value)
@@ -79,9 +84,7 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         return converter.ConvertToString(value);
     }
 
-    /// <summary>
-    /// Return a list of the enum values and their associated display text for the given enum type.
-    /// </summary>
+    /// <summary>Return a list of the enum values and their associated display text for the given enum type.</summary>
     /// <param name="enumType">The enum type to get the values for.</param>
     /// <param name="culture">The culture to get the text for.</param>
     /// <returns>
@@ -106,10 +109,7 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         return result;
     }
 
-    /// <summary>
-    /// Return a list of the enum values and their associated display text for the given enum
-    /// type in the current UI Culture.
-    /// </summary>
+    /// <summary>Return a list of the enum values and their associated display text for the given enum type in the current UI Culture.</summary>
     /// <param name="enumType">The enum type to get the values for.</param>
     /// <returns>
     /// A list of KeyValuePairs where the key is the enum value and the value is the text to display.
@@ -122,9 +122,7 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
     /// </remarks>
     public static List<KeyValuePair<Enum, string?>> GetValues(Type enumType) => GetValues(enumType, CultureInfo.CurrentUICulture);
 
-    /// <summary>
-    /// Handle XAML Conversion from this type to other types.
-    /// </summary>
+    /// <summary>Handle XAML Conversion from this type to other types.</summary>
     /// <param name="value">The value to convert.</param>
     /// <param name="targetType">The target type.</param>
     /// <param name="parameter">not used.</param>
@@ -132,9 +130,7 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
     /// <returns>The converted value.</returns>
     object? IValueConverter.Convert(object value, Type targetType, object parameter, CultureInfo culture) => ConvertTo(null, culture, value, targetType);
 
-    /// <summary>
-    /// Handle XAML Conversion from other types back to this type.
-    /// </summary>
+    /// <summary>Handle XAML Conversion from other types back to this type.</summary>
     /// <param name="value">The value to convert.</param>
     /// <param name="targetType">The target type.</param>
     /// <param name="parameter">not used.</param>
@@ -142,9 +138,7 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
     /// <returns>The converted value.</returns>
     object? IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => ConvertFrom(null, culture, value);
 
-    /// <summary>
-    /// Convert string values to enum values.
-    /// </summary>
+    /// <summary>Convert string values to enum values.</summary>
     /// <param name="context">The context.</param>
     /// <param name="culture">The culture.</param>
     /// <param name="value">The value.</param>
@@ -153,14 +147,17 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
     {
         culture ??= CultureInfo.CurrentCulture;
 
-        return value is string @string
-            ? _isFlagEnum ? GetFlagValue(culture, @string) : GetValue(culture, @string) ?? base.ConvertFrom(context, culture, value)
-            : base.ConvertFrom(context, culture, value);
+        if (value is not string @string)
+        {
+            return base.ConvertFrom(context, culture, value);
+        }
+
+        return _isFlagEnum
+            ? GetFlagValue(culture, @string)
+            : GetValue(culture, @string) ?? base.ConvertFrom(context, culture, value);
     }
 
-    /// <summary>
-    /// Convert the enum value to a string.
-    /// </summary>
+    /// <summary>Convert the enum value to a string.</summary>
     /// <param name="context">The context.</param>
     /// <param name="culture">The culture.</param>
     /// <param name="value">The value.</param>
@@ -170,16 +167,20 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
     {
         culture ??= CultureInfo.CurrentCulture;
 
-        return (value == null
-            ? null
-            : destinationType == typeof(string) || destinationType == typeof(object)
-            ? _isFlagEnum ? GetFlagValueText(culture, value) : GetValueText(culture, value)
-            : base.ConvertTo(context, culture, value, destinationType))!;
+        if (value is null)
+        {
+            return null!;
+        }
+
+        if (destinationType != typeof(string) && destinationType != typeof(object))
+        {
+            return base.ConvertTo(context, culture, value, destinationType)!;
+        }
+
+        return _isFlagEnum ? GetFlagValueText(culture, value)! : GetValueText(culture, value);
     }
 
-    /// <summary>
-    /// Return the name of the resource to use.
-    /// </summary>
+    /// <summary>Return the name of the resource to use.</summary>
     /// <param name="value">The value to get.</param>
     /// <returns>The name of the resource to use.</returns>
     protected virtual string GetResourceName(object value)
@@ -223,15 +224,15 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         }
 
         // otherwise find the combination of flag bit values that makes up the value
-        ulong lValue = Convert.ToUInt32(value);
+        ulong enumValue = Convert.ToUInt32(value);
         string? result = null;
         foreach (var flagValue in _flagValues!)
         {
-            ulong lFlagValue = Convert.ToUInt32(flagValue);
-            if (IsSingleBitValue(lFlagValue) && (lFlagValue & lValue) == lFlagValue)
+            ulong flagBits = Convert.ToUInt32(flagValue);
+            if (IsSingleBitValue(flagBits) && (flagBits & enumValue) == flagBits)
             {
                 var valueText = GetValueText(culture, flagValue!);
-                result = result == null ? valueText : $"{result}, {valueText}";
+                result = result is null ? valueText : $"{result}, {valueText}";
             }
         }
 
@@ -244,14 +245,14 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
 
         if (!_lookupTables.TryGetValue(culture, out var result))
         {
-            result = new LookupTable();
+            result = new();
             var sv = GetStandardValues();
-            if (sv != null)
+            if (sv is not null)
             {
                 foreach (var value in sv)
                 {
                     var text = GetValueText(culture, value!);
-                    if (text != null)
+                    if (text is not null)
                     {
                         result.Add(text, value!);
                     }
@@ -264,22 +265,18 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         return result;
     }
 
-    /// <summary>
-    /// Return the Enum value for a simple (non-flagged enum).
-    /// </summary>
+    /// <summary>Return the Enum value for a simple (non-flagged enum).</summary>
     /// <param name="culture">The culture to convert using.</param>
     /// <param name="text">The text to convert.</param>
     /// <returns>The enum value.</returns>
     private object? GetValue(CultureInfo culture, string text)
     {
         var lookupTable = GetLookupTable(culture);
-        lookupTable.TryGetValue(text, out var result);
+        _ = lookupTable.TryGetValue(text, out var result);
         return result;
     }
 
-    /// <summary>
-    /// Return the text to display for a simple value in the given culture.
-    /// </summary>
+    /// <summary>Return the text to display for a simple value in the given culture.</summary>
     /// <param name="culture">The culture to get the text for.</param>
     /// <param name="value">The enum value to get the text for.</param>
     /// <returns>The localized text.</returns>
@@ -289,5 +286,5 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         return _resourceManager.GetString(resourceName, culture) ?? resourceName;
     }
 
-    private class LookupTable : Dictionary<string, object>;
+    private sealed class LookupTable : Dictionary<string, object>;
 }

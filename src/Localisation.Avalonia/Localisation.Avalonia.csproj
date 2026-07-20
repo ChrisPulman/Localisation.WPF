@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CP.Localisation.Avalonia</RootNamespace>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="ReactiveUI.Primitives" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="ReactiveUI.Primitives.Concurrency.ISequencer" Alias="ISequencer" />
+    <Using Include="ReactiveUI.Primitives.RxVoid" Alias="RxVoid" />
+    <Using Include="ReactiveUI.Primitives.Signals" />
+  </ItemGroup>
+
+</Project>

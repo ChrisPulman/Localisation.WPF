@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/SolutionsConfig/">
+    <File Path="../.editorconfig" />
+    <File Path="../.github/workflows/BuildDeploy.yml" />
+    <File Path="../.github/workflows/BuildOnly.yml" />
+    <File Path="../.gitignore" />
+    <File Path="../Directory.Build.props" />
+    <File Path="../Directory.Packages.props" />
+    <File Path="../global.json" />
+    <File Path="../LICENSE" />
+    <File Path="../README.md" />
+  </Folder>
+  <Project Path="../build/_build.csproj" />
+  <Project Path="Localisation.Avalonia.Reactive/Localisation.Avalonia.Reactive.csproj" />
+  <Project Path="Localisation.Avalonia.Tests/Localisation.Avalonia.Tests.csproj" />
+  <Project Path="Localisation.Avalonia/Localisation.Avalonia.csproj" />
+  <Project Path="Localisation.WPF.Reactive/Localisation.WPF.Reactive.csproj" />
+  <Project Path="Localisation.WPF.TestApp/Localisation.WPF.TestApp.csproj" />
+  <Project Path="Localisation.WPF.Tests/Localisation.WPF.Tests.csproj" />
+  <Project Path="Localisation.WPF/Localisation.WPF.csproj" />
+</Solution>
