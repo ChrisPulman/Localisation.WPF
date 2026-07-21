@@ -47,7 +47,7 @@ internal sealed class WpfLocalizationTests
     private const string UpdatedValue = "Updated";
 
     [Test]
-    public async Task CultureManagersPublishAndSynchronizeChanges()
+    internal async Task CultureManagersPublishAndSynchronizeChanges()
     {
         var originalLeanCulture = Lean.CultureManager.UICulture;
         var originalLeanSynchronization = Lean.CultureManager.SynchronizeThreadCulture;
@@ -101,7 +101,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task ExtensionMethodsSynchronizeCulturesAndConvertEnums()
+    internal async Task ExtensionMethodsSynchronizeCulturesAndConvertEnums()
     {
         var originalCulture = CultureInfo.CurrentCulture;
         var originalUiCulture = CultureInfo.CurrentUICulture;
@@ -124,7 +124,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task ResourceEventArgumentsExposeValuesAndValidateCulture()
+    internal async Task ResourceEventArgumentsExposeValuesAndValidateCulture()
     {
         var lean = new Lean.GetResourceEventArgs(TestResxName, GreetingKey, CultureInfo.InvariantCulture)
         {
@@ -152,7 +152,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task EnumConvertersLocalizeSimpleAndFlagValues()
+    internal async Task EnumConvertersLocalizeSimpleAndFlagValues()
     {
         var manager = new ResourceManager(TestResxName, typeof(WpfLocalizationTests).Assembly);
         var leanSimple = new Lean.ResourceEnumConverter(typeof(SampleValue), manager);
@@ -184,7 +184,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task ManagedExtensionsRegisterAndUpdateDependencyAndClrTargets()
+    internal async Task ManagedExtensionsRegisterAndUpdateDependencyAndClrTargets()
     {
         var result = RunOnSta(
             static () =>
@@ -240,7 +240,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task ResxAndUiCultureExtensionsUpdateRegisteredTargets()
+    internal async Task ResxAndUiCultureExtensionsUpdateRegisteredTargets()
     {
         var result = RunOnSta(
             static () =>
@@ -292,7 +292,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task ReactiveManagedExtensionsRegisterAndUpdateTargets()
+    internal async Task ReactiveManagedExtensionsRegisterAndUpdateTargets()
     {
         var result = RunOnSta(
             static () =>
@@ -322,7 +322,7 @@ internal sealed class WpfLocalizationTests
     }
 
     [Test]
-    public async Task ResxBindingPropertyWrappersRoundTripForBothVariants()
+    internal async Task ResxBindingPropertyWrappersRoundTripForBothVariants()
     {
         var result = RunOnSta(
             static () => ValidateLeanBindingProperties() && ValidateReactiveBindingProperties());
@@ -337,13 +337,13 @@ internal sealed class WpfLocalizationTests
     {
         if (!CultureMatches(current, FrenchCultureName) && !CultureMatches(excluded, FrenchCultureName))
         {
-            return new CultureInfo(FrenchCultureName);
+            return new(FrenchCultureName);
         }
 
         var cultureName = !CultureMatches(current, EnglishCultureName) && !CultureMatches(excluded, EnglishCultureName)
             ? EnglishCultureName
             : GermanCultureName;
-        return new CultureInfo(cultureName);
+        return new(cultureName);
     }
 
     private static T RunOnSta<T>(Func<T> action)
@@ -404,7 +404,7 @@ internal sealed class WpfLocalizationTests
         extension.BindingValidatesOnExceptions = true;
         extension.BindingXPath = BindingXPath;
         extension.BindsDirectlyToSource = true;
-        extension.Children.Add(new Lean.ResxExtension("Child"));
+        extension.Children.Add(new("Child"));
 
         _ = extension.BindingAsyncState;
         _ = extension.BindingConverter;
@@ -464,7 +464,7 @@ internal sealed class WpfLocalizationTests
         extension.BindingValidatesOnExceptions = true;
         extension.BindingXPath = BindingXPath;
         extension.BindsDirectlyToSource = true;
-        extension.Children.Add(new Reactive.ResxExtension("Child"));
+        extension.Children.Add(new("Child"));
 
         _ = extension.BindingAsyncState;
         _ = extension.BindingConverter;

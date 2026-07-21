@@ -51,7 +51,7 @@ internal sealed class AvaloniaLocalizationTests
     private const string TestResxName = "Localisation.Avalonia.Tests.TestResources";
 
     [Test]
-    public async Task CultureManagersPublishAndSynchronizeChanges()
+    internal async Task CultureManagersPublishAndSynchronizeChanges()
     {
         var originalLeanCulture = Lean.CultureManager.UICulture;
         var originalLeanSynchronization = Lean.CultureManager.SynchronizeThreadCulture;
@@ -105,7 +105,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task ResourceExtensionsResolveEmbeddedOverridesDefaultsAndFormatting()
+    internal async Task ResourceExtensionsResolveEmbeddedOverridesDefaultsAndFormatting()
     {
         var target = new TextBlock();
         Lean.ResxExtension.SetDefaultResxName(target, TestResxName);
@@ -152,7 +152,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task RefreshingObservablesRespectKeysAndDisposeSubscriptions()
+    internal async Task RefreshingObservablesRespectKeysAndDisposeSubscriptions()
     {
         var leanValue = 0;
         var reactiveValue = 0;
@@ -184,7 +184,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task MarkupExtensionsCreateAvaloniaBindings()
+    internal async Task MarkupExtensionsCreateAvaloniaBindings()
     {
         var leanTarget = new TextBlock();
         var reactiveTarget = new TextBlock();
@@ -212,7 +212,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task EnumConvertersLocalizeSimpleAndFlagValues()
+    internal async Task EnumConvertersLocalizeSimpleAndFlagValues()
     {
         var manager = new ResourceManager(TestResxName, typeof(AvaloniaLocalizationTests).Assembly);
         var leanSimple = new Lean.ResourceEnumConverter(typeof(SampleValue), manager);
@@ -273,7 +273,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task ConverterGuardsCoverDefensivePaths()
+    internal async Task ConverterGuardsCoverDefensivePaths()
     {
         var originalCulture = CultureInfo.CurrentCulture;
         var originalUiCulture = CultureInfo.CurrentUICulture;
@@ -334,7 +334,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task ExtensionHelpersAndConverterFallbacksResolveValues()
+    internal async Task ExtensionHelpersAndConverterFallbacksResolveValues()
     {
         var manager = new ResourceManager(TestResxName, typeof(AvaloniaLocalizationTests).Assembly);
         var leanSimple = new Lean.ResourceEnumConverter(typeof(SampleValue), manager);
@@ -361,7 +361,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task AdditionalResxPathsHandleMissingResourcesAndClrProperties()
+    internal async Task AdditionalResxPathsHandleMissingResourcesAndClrProperties()
     {
         var lean = new Lean.ResxExtension
         {
@@ -404,7 +404,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task HeadlessAvaloniaSessionCreatesControls()
+    internal async Task HeadlessAvaloniaSessionCreatesControls()
     {
         await using var session = HeadlessUnitTestSession.StartNew(typeof(TestApplication));
         var text = await session.Dispatch(
@@ -414,7 +414,7 @@ internal sealed class AvaloniaLocalizationTests
     }
 
     [Test]
-    public async Task ValidationGuardsRejectInvalidArguments()
+    internal async Task ValidationGuardsRejectInvalidArguments()
     {
         var nullAttachedTargetRejected = false;
         var whitespaceKeyRejected = false;
@@ -455,13 +455,13 @@ internal sealed class AvaloniaLocalizationTests
     {
         if (!CultureMatches(current, FrenchCultureName) && !CultureMatches(excluded, FrenchCultureName))
         {
-            return new CultureInfo(FrenchCultureName);
+            return new(FrenchCultureName);
         }
 
         var cultureName = !CultureMatches(current, EnglishCultureName) && !CultureMatches(excluded, EnglishCultureName)
             ? EnglishCultureName
             : GermanCultureName;
-        return new CultureInfo(cultureName);
+        return new(cultureName);
     }
 
     private static bool CultureMatches(CultureInfo? culture, string name) =>

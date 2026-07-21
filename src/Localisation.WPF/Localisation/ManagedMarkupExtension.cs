@@ -124,7 +124,7 @@ public abstract class ManagedMarkupExtension : MarkupExtension
         }
 
         TargetProperty = provideValueTarget!.TargetProperty;
-        TargetObjects.Add(new WeakReference(target));
+        TargetObjects.Add(new(target));
     }
 
     /// <summary>Called by <see cref="UpdateTargets"/> to update each target referenced by the extension.</summary>

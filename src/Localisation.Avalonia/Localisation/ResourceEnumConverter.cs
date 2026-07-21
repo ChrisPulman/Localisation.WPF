@@ -63,7 +63,7 @@ public class ResourceEnumConverter : EnumConverter, IValueConverter
         var result = new List<KeyValuePair<Enum, string?>>();
         foreach (Enum value in Enum.GetValues(enumType))
         {
-            result.Add(new KeyValuePair<Enum, string?>(value, converter.ConvertToString(null, culture, value)));
+            result.Add(new(value, converter.ConvertToString(null, culture, value)));
         }
 
         return result;

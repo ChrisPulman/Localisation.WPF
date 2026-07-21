@@ -8,9 +8,9 @@ namespace Localisation.Avalonia.Tests;
 
 internal sealed class TestApplication : Application
 {
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<TestApplication>().UseHeadless(new AvaloniaHeadlessPlatformOptions());
-
     public override void Initialize()
     {
     }
+
+    internal static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<TestApplication>().UseHeadless(new());
 }
