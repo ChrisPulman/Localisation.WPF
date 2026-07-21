@@ -159,7 +159,7 @@ public sealed class ResxExtension
             }
 
             _ = _resourceManagers.Remove(resxName);
-            var resourceName = resxName + ".resources";
+            var resourceName = $"{resxName}.resources";
             var assembly = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(static candidate => !candidate.IsDynamic)
                 .FirstOrDefault(candidate => candidate.GetManifestResourceNames().Contains(resourceName, StringComparer.Ordinal));
@@ -169,7 +169,7 @@ public sealed class ResxExtension
             }
 
             var manager = new ResourceManager(resxName, assembly);
-            _resourceManagers.Add(resxName, new WeakReference<ResourceManager>(manager));
+            _resourceManagers.Add(resxName, new(manager));
             return manager;
         }
     }

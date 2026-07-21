@@ -14,5 +14,5 @@ namespace CP.Localisation.Avalonia;
 internal sealed class ResourceRefreshEventArgs(string? key) : EventArgs
 {
     /// <summary>Gets the resource key, or <see langword="null"/> for every key.</summary>
-    public string? Key { get; } = key;
+    internal string? Key { get; } = key;
 }

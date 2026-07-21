@@ -582,7 +582,7 @@ public class ResxExtension : ManagedMarkupExtension
     /// </returns>
     private static string? GetProcessFilepath(int processId)
     {
-        var wmiQueryString = "SELECT ProcessId, ExecutablePath FROM Win32_Process WHERE ProcessId = " + processId;
+        var wmiQueryString = $"SELECT ProcessId, ExecutablePath FROM Win32_Process WHERE ProcessId = {processId}";
         using var searcher = new ManagementObjectSearcher(wmiQueryString);
         using var results = searcher.Get();
         return results
@@ -643,7 +643,7 @@ public class ResxExtension : ManagedMarkupExtension
 
         var culture = cultureSplit[1];
 
-        var fileName = name + ".dll";
+        var fileName = $"{name}.dll";
 
         // look for the latest version of the satellite assembly with the given culture on the
         // assembly probing paths
@@ -906,7 +906,7 @@ public class ResxExtension : ManagedMarkupExtension
         {
             if (targetType == typeof(string) || targetType == typeof(object) || IsMultiBindingChild)
             {
-                result = "#" + key;
+                result = $"#{key}";
             }
         }
         else if (targetType is not null && targetType != typeof(string) && targetType != typeof(object))
@@ -960,7 +960,7 @@ public class ResxExtension : ManagedMarkupExtension
                 result = new(resxName, assembly);
             }
 
-            _resourceManagers.Add(resxName, new WeakReference(result));
+            _resourceManagers.Add(resxName, new(result));
         }
 
         return result;
